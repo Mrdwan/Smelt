@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Smelt"
+dynamic = ["version"]
+description = "AI-powered development workflow automation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "typer>=0.12",
+]
+
+[tool.uv]
+dev-dependencies = ["pytest", "ruff", "mypy"]
+
+[project.scripts]
+smelt = "smelt.cli:app"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.version]
+source = "vcs"
