@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest tests/test_config.py tests/test_context.py tests/test_cli.py -v)"
+    ]
+  }
+}
