@@ -68,6 +68,18 @@ class SQLiteRoadmapStorage(RoadmapStorage):
         except sqlite3.Error as e:
             raise StorageError("Failed to mark step as done.") from e
 
+    def reset_step(self, step_id: str) -> None:
+        try:
+            cursor = self._conn.execute(
+                "UPDATE steps SET done = 0 WHERE id = ?", (step_id,)
+            )
+            self._conn.commit()
+
+            if cursor.rowcount == 0:
+                raise StepNotFoundError(f"No step found with id {step_id}")
+        except sqlite3.Error as e:
+            raise StorageError("Failed to reset step.") from e
+
     def all_steps(self) -> list[Step]:
         try:
             rows = self._conn.execute(

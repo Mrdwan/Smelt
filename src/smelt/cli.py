@@ -84,6 +84,19 @@ def done(step_id: str = typer.Argument(..., help="ID of the step to mark as done
 
 
 @app.command()
+def reset(step_id: str = typer.Argument(..., help="ID of the step to reopen")) -> None:
+    """Reopen a completed step so it will be picked up by next again."""
+    with SQLiteRoadmapStorage(settings.db_path) as roadmap:
+        try:
+            roadmap.reset_step(step_id)
+        except StorageError as e:
+            typer.echo(f"Error resetting step: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    typer.echo(f"Step {step_id} reopened.")
+
+
+@app.command()
 def status() -> None:
     """Show all roadmap steps and their completion status."""
     with SQLiteRoadmapStorage(settings.db_path) as roadmap:

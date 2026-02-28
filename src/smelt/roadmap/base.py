@@ -35,5 +35,9 @@ class RoadmapStorage(ABC):
         pass
 
     @abstractmethod
+    def reset_step(self, step_id: str) -> None:
+        pass
+
+    @abstractmethod
     def all_steps(self) -> list[Step]:
         pass

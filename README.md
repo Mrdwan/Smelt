@@ -43,6 +43,7 @@ pip install SmeltWorkflow
 smelt add       # add a new step to the roadmap
 smelt next      # run the next uncompleted step
 smelt done      # manually mark a step as done
+smelt reset     # reopen a completed step
 smelt status    # show all steps and their state
 ```
 
@@ -66,6 +67,15 @@ Manually marks a step as done by its ID — useful when you've handled a step ou
 ```bash
 smelt done 2
 # Step 2 marked as done.
+```
+
+### `smelt reset`
+
+Reopens a completed step so it will be picked up by `smelt next` again — useful when the agent's output was wrong and you want to retry:
+
+```bash
+smelt reset 2
+# Step 2 reopened.
 ```
 
 ### `smelt status`
