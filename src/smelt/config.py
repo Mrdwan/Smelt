@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SMELT_", env_file=".env", extra="ignore")
 
     model: str = "anthropic/claude-sonnet-4-6"
+    loader_model: str = "anthropic/claude-haiku-4-5-20251001"
+    loader_api_key: str | None = None
     project: Path = Path(".")
     memory: Path = Path("memory")
     context_files: list[str] = ["ARCHITECTURE.md", "DECISIONS.md"]

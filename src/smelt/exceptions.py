@@ -24,3 +24,7 @@ class StepNotFoundError(SmeltError):
 
 class StorageError(SmeltError):
     pass
+
+
+class PlanParseError(SmeltError):
+    pass

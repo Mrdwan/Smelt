@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import typer
 
 from smelt.agents.aider import AiderAgent
+from smelt.agents.plan_parser import PlanParserAgent
 from smelt.config import settings
-from smelt.exceptions import AgentNotFoundError, StorageError
+from smelt.exceptions import AgentNotFoundError, PlanParseError, StorageError
 from smelt.roadmap.sqlite import SQLiteRoadmapStorage
 
 app = typer.Typer()
@@ -53,6 +56,50 @@ def next() -> None:
         else:
             typer.echo("Agent failed. Step not marked as done.", err=True)
             raise typer.Exit(code=1)
+
+
+@app.command()
+def load(
+    file: Path = typer.Argument(..., help="Path to the plan file to import"),
+) -> None:
+    """Parse a plan file with AI and add all extracted steps to the roadmap."""
+    if not file.exists():
+        typer.echo(f"Error: file not found: {file}", err=True)
+        raise typer.Exit(code=1)
+
+    content = file.read_text()
+    typer.echo(f"Parsing {file.name} with {settings.loader_model}...")
+
+    try:
+        steps = PlanParserAgent(
+            model=settings.loader_model, api_key=settings.loader_api_key
+        ).parse(content)
+    except PlanParseError as e:
+        typer.echo(f"Error parsing plan: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    if not steps:
+        typer.echo("No steps found in plan.")
+        return
+
+    typer.echo(f"Found {len(steps)} steps. Saving to roadmap...")
+
+    with SQLiteRoadmapStorage(settings.db_path) as roadmap:
+        try:
+            for step in steps:
+                step_id = roadmap.add_step(step.description)
+                marker = "[x]" if step.done else "[ ]"
+                typer.echo(f"  {marker} {step.description}")
+                if step.done:
+                    roadmap.mark_done(step_id)
+        except StorageError as e:
+            typer.echo(f"Error saving steps: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    done_count = sum(1 for s in steps if s.done)
+    typer.echo(
+        f"\nImported {len(steps)} steps from {file.name} ({done_count} already done)."
+    )
 
 
 @app.command()

@@ -7,6 +7,8 @@ from smelt.config import Settings
 
 def test_defaults(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.delenv("SMELT_MODEL", raising=False)
+    monkeypatch.delenv("SMELT_LOADER_MODEL", raising=False)
+    monkeypatch.delenv("SMELT_LOADER_API_KEY", raising=False)
     monkeypatch.delenv("SMELT_PROJECT", raising=False)
     monkeypatch.delenv("SMELT_MEMORY", raising=False)
     monkeypatch.delenv("SMELT_CONTEXT_FILES", raising=False)
@@ -15,6 +17,8 @@ def test_defaults(monkeypatch: MonkeyPatch) -> None:
     s = Settings(_env_file=None)
 
     assert s.model == "anthropic/claude-sonnet-4-6"
+    assert s.loader_model == "anthropic/claude-haiku-4-5-20251001"
+    assert s.loader_api_key is None
     assert s.project == Path(".")
     assert s.memory == Path("memory")
     assert s.context_files == ["ARCHITECTURE.md", "DECISIONS.md"]
@@ -192,3 +196,27 @@ def test_roadmap_db_from_env(monkeypatch: MonkeyPatch) -> None:
     s = Settings(_env_file=None)
 
     assert s.roadmap_db == "custom.db"
+
+
+def test_loader_model_from_env(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setenv("SMELT_LOADER_MODEL", "deepseek/deepseek-chat")
+
+    s = Settings(_env_file=None)
+
+    assert s.loader_model == "deepseek/deepseek-chat"
+
+
+def test_loader_api_key_from_env(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setenv("SMELT_LOADER_API_KEY", "sk-test-key")
+
+    s = Settings(_env_file=None)
+
+    assert s.loader_api_key == "sk-test-key"
+
+
+def test_loader_api_key_defaults_to_none(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.delenv("SMELT_LOADER_API_KEY", raising=False)
+
+    s = Settings(_env_file=None)
+
+    assert s.loader_api_key is None

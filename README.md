@@ -40,13 +40,25 @@ pip install SmeltWorkflow
 ## Commands
 
 ```
-smelt add       # add a new step to the roadmap
+smelt load      # import steps from a plan file using AI
+smelt add       # add a single step to the roadmap
 smelt next      # run the next uncompleted step
 smelt done      # manually mark a step as done
 smelt reset     # reopen a completed step
 smelt remove    # permanently delete a step
 smelt status    # show all steps and their state
 ```
+
+### `smelt load`
+
+Reads a plan file, uses the configured AI model to extract concrete actionable steps, and adds them all to the roadmap. Handles any format — structured markdown, free text, rough notes:
+
+```bash
+smelt load plan.md
+# Imported 8 steps from plan.md.
+```
+
+The model used is `SMELT_LOADER_MODEL` (default: `anthropic/claude-haiku-4-5-20251001`). Because it uses [litellm](https://github.com/BerriAI/litellm) under the hood, any supported provider works — OpenAI, Anthropic, Deepseek, Groq, local models via Ollama, etc.
 
 ### `smelt add`
 
@@ -104,20 +116,26 @@ Roadmap: 1/3 done
 
 ## Getting started
 
-Create a `.env` file in your project root (copy from `.env.example`):
+Copy the example config into your project directory:
 
 ```bash
 cp .env.example .env
 ```
 
-Add steps to your roadmap, then start working through them:
+Write a plan file, load it, then start working through the steps:
+
+```bash
+smelt load plan.md
+smelt status
+smelt next
+```
+
+Or add steps manually:
 
 ```bash
 smelt add "Set up database models"
 smelt add "Implement authentication"
 smelt add "Write API endpoints"
-
-smelt next
 ```
 
 Smelt will show the next step, ask if you want to proceed, run Aider with any context files it finds, and mark the step done on success.
@@ -139,11 +157,13 @@ None of these are required. Smelt works without them, but the agent produces bet
 
 ## Configuration
 
-All settings are read from environment variables (with `SMELT_` prefix) or a `.env` file.
+All settings are read from environment variables (with `SMELT_` prefix) or a `.env` file in the current directory.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SMELT_MODEL` | `anthropic/claude-sonnet-4-6` | Model passed to Aider |
+| `SMELT_LOADER_MODEL` | `anthropic/claude-haiku-4-5-20251001` | Model used by `smelt load` to parse plans |
+| `SMELT_LOADER_API_KEY` | *(none)* | API key for the loader model |
 | `SMELT_PROJECT` | `.` | Path to your project root |
 | `SMELT_MEMORY` | `memory` | Directory for context files and the roadmap DB |
 | `SMELT_CONTEXT_FILES` | `["ARCHITECTURE.md","DECISIONS.md"]` | Files passed to the agent as read-only context |

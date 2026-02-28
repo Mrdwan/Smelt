@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from smelt.agents.plan_parser import ParsedStep
 from smelt.cli import app
 from smelt.config import Settings
-from smelt.exceptions import AgentNotFoundError, StorageError
+from smelt.exceptions import AgentNotFoundError, PlanParseError, StorageError
 from smelt.roadmap.base import Step
 
 runner = CliRunner()
@@ -376,5 +377,133 @@ def test_remove_storage_error_exits(mock_roadmap: MagicMock) -> None:
 def test_remove_roadmap_closed(mock_roadmap: MagicMock) -> None:
     with patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap):
         runner.invoke(app, ["remove", "3"])
+
+    mock_roadmap.__exit__.assert_called_once()
+
+
+# --- load ---
+
+
+def test_load_file_not_found() -> None:
+    result = runner.invoke(app, ["load", "/nonexistent/plan.md"])
+
+    assert result.exit_code == 1
+    assert "file not found" in result.output
+
+
+def test_load_imports_steps(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("# Plan\n- Do thing A\n- Do thing B")
+    steps = [ParsedStep("Do thing A", done=False), ParsedStep("Do thing B", done=False)]
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = steps
+        result = runner.invoke(app, ["load", str(plan_file)])
+
+    assert result.exit_code == 0
+    assert "2 steps" in result.output
+    assert mock_roadmap.add_step.call_count == 2
+
+
+def test_load_marks_done_steps(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("plan with mixed steps")
+    mock_roadmap.add_step.side_effect = ["1", "2", "3"]
+    steps = [
+        ParsedStep("Step A", done=True),
+        ParsedStep("Step B", done=False),
+        ParsedStep("Step C", done=True),
+    ]
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = steps
+        result = runner.invoke(app, ["load", str(plan_file)])
+
+    assert result.exit_code == 0
+    assert "2 already done" in result.output
+    assert mock_roadmap.mark_done.call_count == 2
+    mock_roadmap.mark_done.assert_any_call("1")
+    mock_roadmap.mark_done.assert_any_call("3")
+
+
+def test_load_calls_parser_with_file_content(
+    mock_roadmap: MagicMock, tmp_path: Path
+) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("my plan content")
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = [ParsedStep("Step one", done=False)]
+        runner.invoke(app, ["load", str(plan_file)])
+
+    MockParser.return_value.parse.assert_called_once_with("my plan content")
+
+
+def test_load_parse_error_exits(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("some plan")
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.side_effect = PlanParseError("bad response")
+        result = runner.invoke(app, ["load", str(plan_file)])
+
+    assert result.exit_code == 1
+    assert "Error parsing plan" in result.output
+
+
+def test_load_no_steps_found(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("empty plan")
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = []
+        result = runner.invoke(app, ["load", str(plan_file)])
+
+    assert result.exit_code == 0
+    assert "No steps found" in result.output
+    mock_roadmap.add_step.assert_not_called()
+
+
+def test_load_storage_error_exits(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("some plan")
+    mock_roadmap.add_step.side_effect = StorageError("write failed")
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = [ParsedStep("Step one", done=False)]
+        result = runner.invoke(app, ["load", str(plan_file)])
+
+    assert result.exit_code == 1
+    assert "Error saving steps" in result.output
+
+
+def test_load_roadmap_closed(mock_roadmap: MagicMock, tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("some plan")
+
+    with (
+        patch("smelt.cli.PlanParserAgent") as MockParser,
+        patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
+    ):
+        MockParser.return_value.parse.return_value = [ParsedStep("Step one", done=False)]
+        runner.invoke(app, ["load", str(plan_file)])
 
     mock_roadmap.__exit__.assert_called_once()
