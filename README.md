@@ -40,8 +40,18 @@ pip install SmeltWorkflow
 ## Commands
 
 ```
+smelt add       # add a new step to the roadmap
 smelt next      # run the next uncompleted step
 smelt status    # show all steps and their state
+```
+
+### `smelt add`
+
+Appends a new step to the roadmap:
+
+```bash
+smelt add "Implement authentication"
+# Step added (id=1): Implement authentication
 ```
 
 ### `smelt next`
@@ -70,9 +80,13 @@ Create a `.env` file in your project root (copy from `.env.example`):
 cp .env.example .env
 ```
 
-Add steps directly to the SQLite database (stored at `memory/roadmap.db` by default), then run:
+Add steps to your roadmap, then start working through them:
 
 ```bash
+smelt add "Set up database models"
+smelt add "Implement authentication"
+smelt add "Write API endpoints"
+
 smelt next
 ```
 

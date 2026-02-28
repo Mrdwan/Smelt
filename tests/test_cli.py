@@ -249,3 +249,45 @@ def test_status_roadmap_closed(mock_roadmap_with_steps: MagicMock) -> None:
         runner.invoke(app, ["status"])
 
     mock_roadmap_with_steps.__exit__.assert_called_once()
+
+
+# --- add ---
+
+
+def test_add_step_succeeds(mock_roadmap: MagicMock) -> None:
+    mock_roadmap.add_step.return_value = "42"
+
+    with patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap):
+        result = runner.invoke(app, ["add", "Implement login page"])
+
+    assert result.exit_code == 0
+    assert "Implement login page" in result.output
+    assert "42" in result.output
+
+
+def test_add_step_calls_add_step(mock_roadmap: MagicMock) -> None:
+    mock_roadmap.add_step.return_value = "1"
+
+    with patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap):
+        runner.invoke(app, ["add", "Implement login page"])
+
+    mock_roadmap.add_step.assert_called_once_with("Implement login page")
+
+
+def test_add_step_storage_error_exits(mock_roadmap: MagicMock) -> None:
+    mock_roadmap.add_step.side_effect = StorageError("write failed")
+
+    with patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap):
+        result = runner.invoke(app, ["add", "Some step"])
+
+    assert result.exit_code == 1
+    assert "Error adding step" in result.output
+
+
+def test_add_step_roadmap_closed(mock_roadmap: MagicMock) -> None:
+    mock_roadmap.add_step.return_value = "1"
+
+    with patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap):
+        runner.invoke(app, ["add", "Some step"])
+
+    mock_roadmap.__exit__.assert_called_once()

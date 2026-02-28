@@ -56,6 +56,21 @@ def next() -> None:
 
 
 @app.command()
+def add(
+    description: str = typer.Argument(..., help="Description of the step to add"),
+) -> None:
+    """Add a new step to the roadmap."""
+    with SQLiteRoadmapStorage(settings.db_path) as roadmap:
+        try:
+            step_id = roadmap.add_step(description)
+        except StorageError as e:
+            typer.echo(f"Error adding step: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    typer.echo(f"Step added (id={step_id}): {description}")
+
+
+@app.command()
 def status() -> None:
     """Show all roadmap steps and their completion status."""
     with SQLiteRoadmapStorage(settings.db_path) as roadmap:
