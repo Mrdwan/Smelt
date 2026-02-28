@@ -1,8 +1,6 @@
 import json
 from dataclasses import dataclass
 
-import litellm
-
 from smelt.exceptions import PlanParseError
 
 _SYSTEM_PROMPT = """\
@@ -32,18 +30,22 @@ class ParsedStep:
 
 
 class PlanParserAgent:
-    def __init__(self, model: str, api_key: str | None = None) -> None:
+    def __init__(self, model: str, api_key: str | None = None, retries: int = 3) -> None:
         self._model = model
         self._api_key = api_key
+        self._retries = retries
 
     def parse(self, content: str) -> list[ParsedStep]:
         """Parse a plan document and return a list of steps with completion status."""
+        import litellm
+
         kwargs: dict = {
             "model": self._model,
             "messages": [
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": content},
             ],
+            "num_retries": self._retries,
         }
         if self._api_key is not None:
             kwargs["api_key"] = self._api_key
@@ -54,6 +56,14 @@ class PlanParserAgent:
             raise PlanParseError(f"LLM call failed: {e}") from e
 
         raw = response.choices[0].message.content or ""
+
+        raw = raw.strip()
+        if raw.startswith("```"):
+            lines = raw.splitlines()
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            raw = "\n".join(lines)
 
         try:
             items = json.loads(raw)

@@ -74,6 +74,26 @@ def test_parse_filters_empty_descriptions() -> None:
     assert result[1].description == "Write tests"
 
 
+def test_parse_strips_markdown_code_fence() -> None:
+    payload = [{"description": "Do something", "done": False}]
+    fenced = f"```json\n{_steps_json(payload)}\n```"
+
+    with patch("litellm.completion", return_value=_make_response(fenced)):
+        result = PlanParserAgent(model="test/model").parse("some plan")
+
+    assert result == [ParsedStep(description="Do something", done=False)]
+
+
+def test_parse_strips_generic_code_fence() -> None:
+    payload = [{"description": "Do something", "done": False}]
+    fenced = f"```\n{_steps_json(payload)}\n```"
+
+    with patch("litellm.completion", return_value=_make_response(fenced)):
+        result = PlanParserAgent(model="test/model").parse("some plan")
+
+    assert result == [ParsedStep(description="Do something", done=False)]
+
+
 def test_parse_raises_on_invalid_json() -> None:
     with patch("litellm.completion", return_value=_make_response("not json at all")):
         with pytest.raises(PlanParseError, match="invalid JSON"):
@@ -99,3 +119,25 @@ def test_parse_raises_on_llm_error() -> None:
     with patch("litellm.completion", side_effect=Exception("API timeout")):
         with pytest.raises(PlanParseError, match="LLM call failed"):
             PlanParserAgent(model="test/model").parse("some plan")
+
+
+def test_default_retries_passed_to_litellm() -> None:
+    payload = [{"description": "Do something", "done": False}]
+
+    with patch(
+        "litellm.completion", return_value=_make_response(_steps_json(payload))
+    ) as mock:
+        PlanParserAgent(model="test/model").parse("some plan")
+
+    assert mock.call_args.kwargs["num_retries"] == 3
+
+
+def test_custom_retries_passed_to_litellm() -> None:
+    payload = [{"description": "Do something", "done": False}]
+
+    with patch(
+        "litellm.completion", return_value=_make_response(_steps_json(payload))
+    ) as mock:
+        PlanParserAgent(model="test/model", retries=5).parse("some plan")
+
+    assert mock.call_args.kwargs["num_retries"] == 5

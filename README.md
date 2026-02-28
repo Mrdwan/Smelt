@@ -51,14 +51,20 @@ smelt status    # show all steps and their state
 
 ### `smelt load`
 
-Reads a plan file, uses the configured AI model to extract concrete actionable steps, and adds them all to the roadmap. Handles any format — structured markdown, free text, rough notes:
+Reads a plan file, uses an AI model to extract concrete actionable steps, and adds them all to the roadmap. Handles any format — structured markdown, free text, rough notes:
 
 ```bash
 smelt load plan.md
-# Imported 8 steps from plan.md.
+# Parsing plan.md with deepseek/deepseek-chat...
+# Found 8 steps. Saving to roadmap...
+#   [ ] Set up database models
+#   [ ] Implement authentication
+#   [x] Write initial spec
+#
+# Imported 8 steps from plan.md (1 already done).
 ```
 
-The model used is `SMELT_LOADER_MODEL` (default: `anthropic/claude-haiku-4-5-20251001`). Because it uses [litellm](https://github.com/BerriAI/litellm) under the hood, any supported provider works — OpenAI, Anthropic, Deepseek, Groq, local models via Ollama, etc.
+The model used is `SMELT_LOADER_MODEL`. Because it uses [litellm](https://github.com/BerriAI/litellm) under the hood, any supported provider works — OpenAI, Anthropic, Deepseek, Groq, local models via Ollama, etc. A cheap/fast model is ideal for this step.
 
 ### `smelt add`
 
@@ -116,10 +122,11 @@ Roadmap: 1/3 done
 
 ## Getting started
 
-Copy the example config into your project directory:
+Copy the example config and fill in your API keys:
 
 ```bash
 cp .env.example .env
+# edit .env with your model and API key
 ```
 
 Write a plan file, load it, then start working through the steps:
@@ -164,6 +171,7 @@ All settings are read from environment variables (with `SMELT_` prefix) or a `.e
 | `SMELT_MODEL` | `anthropic/claude-sonnet-4-6` | Model passed to Aider |
 | `SMELT_LOADER_MODEL` | `anthropic/claude-haiku-4-5-20251001` | Model used by `smelt load` to parse plans |
 | `SMELT_LOADER_API_KEY` | *(none)* | API key for the loader model |
+| `SMELT_LOADER_RETRIES` | `3` | Retries on transient loader errors |
 | `SMELT_PROJECT` | `.` | Path to your project root |
 | `SMELT_MEMORY` | `memory` | Directory for context files and the roadmap DB |
 | `SMELT_CONTEXT_FILES` | `["ARCHITECTURE.md","DECISIONS.md"]` | Files passed to the agent as read-only context |

@@ -72,7 +72,9 @@ def load(
 
     try:
         steps = PlanParserAgent(
-            model=settings.loader_model, api_key=settings.loader_api_key
+            model=settings.loader_model,
+            api_key=settings.loader_api_key,
+            retries=settings.loader_retries,
         ).parse(content)
     except PlanParseError as e:
         typer.echo(f"Error parsing plan: {e}", err=True)
