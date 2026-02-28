@@ -8,14 +8,7 @@ Smelt is a CLI tool that drives AI coding agents through your project roadmap st
 
 ## How it works
 
-Smelt reads your roadmap from a local SQLite database, picks the next uncompleted step, builds context from your architecture and decision docs, and hands it off to an AI agent. When the agent finishes, you mark the step done and move on.
-
-```
-smelt next          # run the next uncompleted step
-smelt status        # show all steps and their state
-smelt add "..."     # add a new step to the roadmap
-smelt done <id>     # manually mark a step as complete
-```
+Smelt reads your roadmap from a local SQLite database, picks the next uncompleted step, builds context from your architecture and decision docs, and hands it off to an AI agent. When the agent finishes successfully, the step is automatically marked as done.
 
 ---
 
@@ -33,57 +26,68 @@ pip install aider-chat
 ## Installation
 
 ```bash
-uv tool install smelt
+uv tool install SmeltWorkflow
 ```
 
-Or if you prefer pip:
+Or with pip:
 
 ```bash
-pip install smelt
+pip install SmeltWorkflow
+```
+
+---
+
+## Commands
+
+```
+smelt next      # run the next uncompleted step
+smelt status    # show all steps and their state
+```
+
+### `smelt next`
+
+Fetches the next pending step from the roadmap, shows it, and asks for confirmation before running the agent. On success the step is marked done. On failure it stays pending so you can retry or skip.
+
+### `smelt status`
+
+Lists every step in the roadmap with its completion state:
+
+```
+Roadmap: 1/3 done
+
+  [x] Set up database models
+  [ ] Implement authentication
+  [ ] Write API endpoints
 ```
 
 ---
 
 ## Getting started
 
-Initialize a roadmap in your project:
+Create a `.env` file in your project root (copy from `.env.example`):
 
 ```bash
-cd your-project
-smelt init
+cp .env.example .env
 ```
 
-Add your first steps:
-
-```bash
-smelt add "Set up database models"
-smelt add "Implement authentication"
-smelt add "Write API endpoints"
-```
-
-Run the next step:
+Add steps directly to the SQLite database (stored at `memory/roadmap.db` by default), then run:
 
 ```bash
 smelt next
 ```
 
-Smelt will pass the step to Aider along with any context files it finds in your `memory/` directory. Review the changes, then mark it done when you're happy:
-
-```bash
-smelt done
-```
+Smelt will show the next step, ask if you want to proceed, run Aider with any context files it finds, and mark the step done on success.
 
 ---
 
 ## Context files
 
-Smelt looks for the following files in a `memory/` directory at your project root and passes them to the agent as read-only context:
+Smelt looks for the following files in the `memory/` directory and passes them to the agent as read-only context:
 
 | File | Purpose |
 |------|---------|
 | `ARCHITECTURE.md` | High-level system design |
 | `DECISIONS.md` | Key decisions and their rationale |
-| `PROGRESS.md` | Current state of the project |
 
 None of these are required. Smelt works without them, but the agent produces better output when it has context.
 
@@ -91,14 +95,15 @@ None of these are required. Smelt works without them, but the agent produces bet
 
 ## Configuration
 
-Smelt is configured via environment variables:
+All settings are read from environment variables (with `SMELT_` prefix) or a `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SMELT_MODEL` | `anthropic/claude-sonnet-4-5` | Model passed to Aider |
+| `SMELT_MODEL` | `anthropic/claude-sonnet-4-6` | Model passed to Aider |
 | `SMELT_PROJECT` | `.` | Path to your project root |
-
-Copy `.env.example` to `.env` and adjust as needed.
+| `SMELT_MEMORY` | `memory` | Directory for context files and the roadmap DB |
+| `SMELT_CONTEXT_FILES` | `["ARCHITECTURE.md","DECISIONS.md"]` | Files passed to the agent as read-only context |
+| `SMELT_ROADMAP_DB` | `roadmap.db` | Filename of the SQLite roadmap database |
 
 ---
 
@@ -120,17 +125,22 @@ class MyAgent(Agent):
 ## Development
 
 ```bash
-git clone https://github.com/yourname/smelt
-cd smelt
+git clone https://github.com/MrDwarf7/Smelt
+cd Smelt
 uv sync
 uv run pytest
 ```
 
+Pre-commit hooks run automatically on every commit (ruff lint, ruff format, pytest). To install them after cloning:
+
 ```bash
-make lint      # ruff check + fix
-make format    # ruff format
-make test      # pytest
-make check     # all of the above
+uv run pre-commit install
+```
+
+To run manually:
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 ---

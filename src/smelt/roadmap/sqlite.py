@@ -1,11 +1,14 @@
 import sqlite3
+from pathlib import Path
 
 from smelt.exceptions import StepNotFoundError, StorageError
 from smelt.roadmap.base import RoadmapStorage, Step
 
 
 class SQLiteRoadmapStorage(RoadmapStorage):
-    def __init__(self, path: str):
+    def __init__(self, path: Path | str) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
         self._create_table_if_not_exists()

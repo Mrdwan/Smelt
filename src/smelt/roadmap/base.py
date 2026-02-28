@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Self
 
 
 @dataclass
@@ -10,6 +11,12 @@ class Step:
 
 
 class RoadmapStorage(ABC):
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
     @abstractmethod
     def close(self) -> None:
         """Close any resources used by the roadmap."""

@@ -12,5 +12,9 @@ class Settings(BaseSettings):
     context_files: list[str] = ["ARCHITECTURE.md", "DECISIONS.md"]
     roadmap_db: str = "roadmap.db"
 
+    @property
+    def db_path(self) -> Path:
+        return self.memory / self.roadmap_db
+
 
 settings = Settings()
