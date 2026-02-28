@@ -42,6 +42,7 @@ pip install SmeltWorkflow
 ```
 smelt add       # add a new step to the roadmap
 smelt next      # run the next uncompleted step
+smelt done      # manually mark a step as done
 smelt status    # show all steps and their state
 ```
 
@@ -57,6 +58,15 @@ smelt add "Implement authentication"
 ### `smelt next`
 
 Fetches the next pending step from the roadmap, shows it, and asks for confirmation before running the agent. On success the step is marked done. On failure it stays pending so you can retry or skip.
+
+### `smelt done`
+
+Manually marks a step as done by its ID — useful when you've handled a step outside of Smelt:
+
+```bash
+smelt done 2
+# Step 2 marked as done.
+```
 
 ### `smelt status`
 

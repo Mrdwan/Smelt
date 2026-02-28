@@ -71,6 +71,19 @@ def add(
 
 
 @app.command()
+def done(step_id: str = typer.Argument(..., help="ID of the step to mark as done")) -> None:
+    """Manually mark a step as done."""
+    with SQLiteRoadmapStorage(settings.db_path) as roadmap:
+        try:
+            roadmap.mark_done(step_id)
+        except StorageError as e:
+            typer.echo(f"Error marking step as done: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    typer.echo(f"Step {step_id} marked as done.")
+
+
+@app.command()
 def status() -> None:
     """Show all roadmap steps and their completion status."""
     with SQLiteRoadmapStorage(settings.db_path) as roadmap:
