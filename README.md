@@ -44,6 +44,7 @@ smelt add       # add a new step to the roadmap
 smelt next      # run the next uncompleted step
 smelt done      # manually mark a step as done
 smelt reset     # reopen a completed step
+smelt remove    # permanently delete a step
 smelt status    # show all steps and their state
 ```
 
@@ -76,6 +77,15 @@ Reopens a completed step so it will be picked up by `smelt next` again — usefu
 ```bash
 smelt reset 2
 # Step 2 reopened.
+```
+
+### `smelt remove`
+
+Permanently deletes a step from the roadmap:
+
+```bash
+smelt remove 3
+# Step 3 removed.
 ```
 
 ### `smelt status`

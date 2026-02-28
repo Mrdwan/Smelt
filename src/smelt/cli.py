@@ -97,6 +97,19 @@ def reset(step_id: str = typer.Argument(..., help="ID of the step to reopen")) -
 
 
 @app.command()
+def remove(step_id: str = typer.Argument(..., help="ID of the step to remove")) -> None:
+    """Permanently delete a step from the roadmap."""
+    with SQLiteRoadmapStorage(settings.db_path) as roadmap:
+        try:
+            roadmap.remove_step(step_id)
+        except StorageError as e:
+            typer.echo(f"Error removing step: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    typer.echo(f"Step {step_id} removed.")
+
+
+@app.command()
 def status() -> None:
     """Show all roadmap steps and their completion status."""
     with SQLiteRoadmapStorage(settings.db_path) as roadmap:
