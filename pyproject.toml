@@ -18,7 +18,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy", "hatch-vcs"]
+dev = ["pytest", "ruff", "mypy", "hatch-vcs", "pre-commit"]
 
 [tool.hatch.version]
 source = "vcs"

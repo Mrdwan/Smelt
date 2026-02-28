@@ -66,12 +66,12 @@ def test_user_confirms_runs_agent(mock_roadmap: MagicMock, mock_agent: MagicMock
     ):
         runner.invoke(app, ["next"], input="y\n")
 
-    mock_agent.run.assert_called_once_with(
-        message="Add login page", context_files=[]
-    )
+    mock_agent.run.assert_called_once_with(message="Add login page", context_files=[])
 
 
-def test_agent_success_marks_step_done(mock_roadmap: MagicMock, mock_agent: MagicMock) -> None:
+def test_agent_success_marks_step_done(
+    mock_roadmap: MagicMock, mock_agent: MagicMock
+) -> None:
     with (
         patch("smelt.cli.SQLiteRoadmapStorage", return_value=mock_roadmap),
         patch("smelt.cli.AiderAgent", return_value=mock_agent),
@@ -83,7 +83,9 @@ def test_agent_success_marks_step_done(mock_roadmap: MagicMock, mock_agent: Magi
     assert "marked as done" in result.output
 
 
-def test_agent_failure_does_not_mark_done(mock_roadmap: MagicMock, mock_agent: MagicMock) -> None:
+def test_agent_failure_does_not_mark_done(
+    mock_roadmap: MagicMock, mock_agent: MagicMock
+) -> None:
     mock_agent.run.return_value = False
 
     with (
@@ -118,7 +120,9 @@ def test_storage_error_on_next_step_exits(mock_roadmap: MagicMock) -> None:
     assert "Error reading roadmap" in result.output
 
 
-def test_storage_error_on_mark_done_exits(mock_roadmap: MagicMock, mock_agent: MagicMock) -> None:
+def test_storage_error_on_mark_done_exits(
+    mock_roadmap: MagicMock, mock_agent: MagicMock
+) -> None:
     mock_roadmap.mark_done.side_effect = StorageError("write failed")
 
     with (
@@ -132,7 +136,10 @@ def test_storage_error_on_mark_done_exits(mock_roadmap: MagicMock, mock_agent: M
 
 
 def test_context_files_passed_when_memory_files_exist(
-    mock_roadmap: MagicMock, mock_agent: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    mock_roadmap: MagicMock,
+    mock_agent: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     memory_dir = tmp_path / "memory_with_files"
     memory_dir.mkdir()

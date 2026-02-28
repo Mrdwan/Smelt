@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pytest
 from pytest import MonkeyPatch
 
 from smelt.config import Settings
@@ -131,7 +130,9 @@ def test_env_var_overrides_env_file(monkeypatch: MonkeyPatch, tmp_path: Path) ->
     assert s.model == "openai/gpt-4o"
 
 
-def test_missing_env_file_falls_back_to_defaults(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+def test_missing_env_file_falls_back_to_defaults(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.delenv("SMELT_MODEL", raising=False)
     monkeypatch.delenv("SMELT_PROJECT", raising=False)
     monkeypatch.delenv("SMELT_MEMORY", raising=False)
