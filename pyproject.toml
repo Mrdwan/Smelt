@@ -1,5 +1,5 @@
 [project]
-name = "smelt"
+name = "SmeltWorkflow"
 dynamic = ["version"]
 description = "AI-powered development workflow automation"
 readme = "README.md"
