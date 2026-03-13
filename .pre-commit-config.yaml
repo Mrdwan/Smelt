@@ -19,7 +19,7 @@ repos:
     hooks:
       - id: pytest-cov
         name: pytest (with 100% coverage)
-        entry: uv run pytest --cov --cov-report=term-missing -q
+        entry: uv run pytest --cov --cov-branch --cov-report=term-missing -q
         language: system
         pass_filenames: false
         always_run: true
