@@ -1,0 +1,25 @@
+# Ruff configuration for Smelt
+# https://docs.astral.sh/ruff/configuration/
+
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+
+[lint.isort]
+known-first-party = ["smelt"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
