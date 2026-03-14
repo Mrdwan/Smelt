@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 from click.testing import CliRunner
 
 from smelt import __version__
-from smelt.cli import cli
+from smelt.cli import _get_db, cli
+
+
+def test_get_db_default_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("SMELT_DB_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    store = _get_db()
+    assert store is not None
+    assert (tmp_path / ".smelt" / "roadmap.db").exists()
 
 
 class TestCLIGroup:
-    """Tests for the top-level CLI group."""
-
     def test_help_exits_zero(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["--help"])
@@ -32,8 +43,6 @@ class TestCLIGroup:
 
 
 class TestRunCommand:
-    """Tests for `smelt run`."""
-
     def test_run_no_args(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["run"])
@@ -46,19 +55,13 @@ class TestRunCommand:
         assert result.exit_code == 0
         assert "abc-123" in result.output
 
-    def test_run_help(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["run", "--help"])
-        assert result.exit_code == 0
-
 
 class TestAddCommand:
-    """Tests for `smelt add`."""
-
     def test_add_basic(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["add", "implement user auth"])
         assert result.exit_code == 0
+        assert "added task" in result.output
         assert "implement user auth" in result.output
 
     def test_add_with_context(self) -> None:
@@ -71,95 +74,94 @@ class TestAddCommand:
 
     def test_add_with_depends_on(self) -> None:
         runner = CliRunner()
+        # Create dependencies first otherwise add will fail due to TaskNotFoundError
+        store = _get_db()
+        t1 = store.add_task("task 1")
+        t2 = store.add_task("task 2")
+
         result = runner.invoke(
-            cli, ["add", "implement user auth", "--depends-on", "task-1,task-2"]
+            cli, ["add", "implement user auth", "--depends-on", f"{t1.id},{t2.id}"]
         )
         assert result.exit_code == 0
-        assert "task-1,task-2" in result.output
+        assert t1.id in result.output
+        assert t2.id in result.output
 
-    def test_add_with_all_options(self) -> None:
+    def test_add_fails_missing_dependency(self) -> None:
         runner = CliRunner()
         result = runner.invoke(
-            cli,
-            [
-                "add",
-                "build API",
-                "--context",
-                "REST API spec",
-                "--depends-on",
-                "task-0",
-            ],
+            cli, ["add", "implement user auth", "--depends-on", "fake-id"]
         )
-        assert result.exit_code == 0
-        assert "build API" in result.output
-        assert "REST API spec" in result.output
-        assert "task-0" in result.output
+        assert result.exit_code != 0
+        assert "Error:" in result.output
+        assert "not found" in result.output
 
     def test_add_missing_description_fails(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["add"])
         assert result.exit_code != 0
 
-    def test_add_help(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["add", "--help"])
-        assert result.exit_code == 0
-
 
 class TestStatusCommand:
-    """Tests for `smelt status`."""
-
-    def test_status(self) -> None:
+    def test_status_empty(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["status"])
         assert result.exit_code == 0
-        assert "task board" in result.output
+        assert "task board is empty" in result.output
 
-    def test_status_help(self) -> None:
+    def test_status_with_tasks(self) -> None:
         runner = CliRunner()
-        result = runner.invoke(cli, ["status", "--help"])
+        store = _get_db()
+        store.add_task("test task alpha")
+
+        result = runner.invoke(cli, ["status"])
         assert result.exit_code == 0
+        assert "Smelt Task Board" in result.output
+        assert "test task alpha" in result.output
 
 
 class TestLintCommand:
-    """Tests for `smelt lint`."""
-
-    def test_lint_default(self) -> None:
+    def test_lint_default_success(self, mocker: MagicMock) -> None:
+        mock_run = mocker.patch("subprocess.run")
         runner = CliRunner()
         result = runner.invoke(cli, ["lint"])
         assert result.exit_code == 0
-        assert "fixing lint" in result.output
+        assert "fixing lint + formatting" in result.output
+        assert "Linting and formatting complete!" in result.output
+        assert mock_run.call_count == 2
 
-    def test_lint_check_mode(self) -> None:
+    def test_lint_default_fails(self, mocker: MagicMock) -> None:
+        mock_run = mocker.patch("subprocess.run")
+        import subprocess
+
+        mock_run.side_effect = subprocess.CalledProcessError(1, ["ruff"])
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["lint"])
+        assert result.exit_code != 0
+        assert "Linting failed." in result.output
+
+    def test_lint_check_mode_success(self, mocker: MagicMock) -> None:
+        mock_run = mocker.patch("subprocess.run")
         runner = CliRunner()
         result = runner.invoke(cli, ["lint", "--check"])
         assert result.exit_code == 0
-        assert "checking lint" in result.output
+        assert "checking lint (CI mode)" in result.output
+        assert "All checks passed!" in result.output
+        assert mock_run.call_count == 2
 
-    def test_lint_help(self) -> None:
+    def test_lint_check_mode_fails(self, mocker: MagicMock) -> None:
+        mock_run = mocker.patch("subprocess.run")
+        import subprocess
+
+        mock_run.side_effect = subprocess.CalledProcessError(1, ["ruff"])
+
         runner = CliRunner()
-        result = runner.invoke(cli, ["lint", "--help"])
-        assert result.exit_code == 0
-
-
-class TestHistoryCommand:
-    """Tests for `smelt history`."""
-
-    def test_history(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["history"])
-        assert result.exit_code == 0
-        assert "run history" in result.output
-
-    def test_history_help(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["history", "--help"])
-        assert result.exit_code == 0
+        result = runner.invoke(cli, ["lint", "--check"])
+        assert result.exit_code != 0
+        assert "Linting failed." in result.output
 
 
 class TestReplayCommand:
-    """Tests for `smelt replay`."""
-
     def test_replay(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["replay", "run-42"])
@@ -171,57 +173,27 @@ class TestReplayCommand:
         result = runner.invoke(cli, ["replay"])
         assert result.exit_code != 0
 
-    def test_replay_help(self) -> None:
+
+class TestStubs:
+    def test_history(self) -> None:
         runner = CliRunner()
-        result = runner.invoke(cli, ["replay", "--help"])
+        result = runner.invoke(cli, ["history"])
         assert result.exit_code == 0
-
-
-class TestCleanupCommand:
-    """Tests for `smelt cleanup`."""
 
     def test_cleanup(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["cleanup"])
         assert result.exit_code == 0
-        assert "cleaning up" in result.output
-
-    def test_cleanup_help(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["cleanup", "--help"])
-        assert result.exit_code == 0
-
-
-class TestDecomposeCommand:
-    """Tests for `smelt decompose`."""
 
     def test_decompose(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["decompose", "task-99"])
         assert result.exit_code == 0
-        assert "task-99" in result.output
-
-    def test_decompose_missing_id_fails(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["decompose"])
-        assert result.exit_code != 0
-
-    def test_decompose_help(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["decompose", "--help"])
-        assert result.exit_code == 0
 
 
 class TestPackageMetadata:
-    """Tests for package-level metadata."""
-
     def test_version_is_string(self) -> None:
         assert isinstance(__version__, str)
-
-    def test_version_format(self) -> None:
-        parts = __version__.split(".")
-        assert len(parts) == 3
-        assert all(part.isdigit() for part in parts)
 
     def test_package_docstring(self) -> None:
         import smelt

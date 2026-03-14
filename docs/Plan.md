@@ -103,13 +103,13 @@ Pipeline picks next ready task (dependencies met)
 ## Implementation Order (suggested)
 
 ### Phase 1: Foundation
-- [ ] SQLite schema: tasks table with status, priority, complexity,
+- [x] SQLite schema: tasks table with status, priority, complexity,
       context, context_files fields
-- [ ] SQLite schema: task_dependencies table (many-to-many)
-- [ ] Task picker query with dependency resolution
-- [ ] Config: smelt.toml loading + validation
-- [ ] CLI skeleton: `smelt run`, `smelt add`, `smelt status`, `smelt lint`
-- [ ] Git operations module (branch, commit, push — used by pipeline only)
+- [x] SQLite schema: task_dependencies table (many-to-many)
+- [x] Task picker query with dependency resolution
+- [x] Config: smelt.toml loading + validation
+- [x] CLI skeleton: `smelt run`, `smelt add`, `smelt status`, `smelt lint`
+- [x] Git operations module (branch, commit, push — used by pipeline only)
 
 ### Phase 2: Core Pipeline
 - [ ] Sanity check (pytest on develop, bug ticket creation)

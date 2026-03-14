@@ -2,12 +2,38 @@
 
 from __future__ import annotations
 
+import os
+import sqlite3
+import subprocess
+from pathlib import Path
+
 import click
 from rich.console import Console
+from rich.table import Table
 
 from smelt import __version__
+from smelt.db.schema import init_db
+from smelt.db.store import TaskStore
+from smelt.exceptions import SmeltError
 
 console = Console()
+
+
+def _get_db() -> TaskStore:
+    """Get the initialized TaskStore.
+
+    Uses SMELT_DB_PATH env var if set (for tests),
+    otherwise defaults to .smelt/roadmap.db in the current directory.
+    """
+    db_path = os.environ.get("SMELT_DB_PATH")
+    if not db_path:
+        db_path = ".smelt/roadmap.db"
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    init_db(conn)
+    return TaskStore(conn)
 
 
 @click.group()
@@ -33,19 +59,53 @@ def run(task: str | None) -> None:
 @click.option("--depends-on", default=None, help="Comma-separated task IDs.")
 def add(description: str, context: str | None, depends_on: str | None) -> None:
     """Add a new task to the roadmap."""
-    console.print(f"[bold cyan]smelt[/] → adding task: [green]{description}[/]")
-    if context:
-        console.print(f"  context: {context}")
-    if depends_on:
-        console.print(f"  depends on: {depends_on}")
-    console.print("[dim]Roadmap DB not yet implemented.[/]")
+    deps = [d.strip() for d in depends_on.split(",")] if depends_on else None
+
+    try:
+        store = _get_db()
+        task = store.add_task(
+            description=description,
+            context=context,
+            depends_on=deps,
+        )
+        console.print(
+            f"[bold cyan]smelt[/] → added task [yellow]{task.id}[/]: "
+            f"[green]{description}[/]"
+        )
+        if context:
+            console.print(f"  context: {context}")
+        if depends_on:
+            console.print(f"  depends on: {depends_on}")
+    except SmeltError as e:
+        console.print(f"[bold red]Error:[/] {e}")
+        raise click.Abort() from e
 
 
 @cli.command()
 def status() -> None:
     """Show the current task board."""
-    console.print("[bold cyan]smelt[/] → task board")
-    console.print("[dim]Roadmap DB not yet implemented.[/]")
+    store = _get_db()
+    tasks = store.list_tasks()
+
+    if not tasks:
+        console.print("[bold cyan]smelt[/] → task board is empty")
+        return
+
+    table = Table(title="Smelt Task Board")
+    table.add_column("ID", style="yellow")
+    table.add_column("Status", style="magenta")
+    table.add_column("Priority", justify="right")
+    table.add_column("Description")
+
+    for task in tasks:
+        table.add_row(
+            task.id,
+            task.status,
+            str(task.priority),
+            task.description,
+        )
+
+    console.print(table)
 
 
 @cli.command()
@@ -54,9 +114,22 @@ def lint(*, check: bool) -> None:
     """Lint and format the codebase with ruff."""
     if check:
         console.print("[bold cyan]smelt[/] → checking lint (CI mode) …")
+        try:
+            subprocess.run(["ruff", "check", "."], check=True)
+            subprocess.run(["ruff", "format", "--check", "."], check=True)
+            console.print("[bold green]All checks passed![/]")
+        except subprocess.CalledProcessError as e:
+            console.print("[bold red]Linting failed.[/]")
+            raise click.Abort() from e
     else:
         console.print("[bold cyan]smelt[/] → fixing lint + formatting …")
-    console.print("[dim]Lint runner not yet implemented.[/]")
+        try:
+            subprocess.run(["ruff", "check", "--fix", "."], check=True)
+            subprocess.run(["ruff", "format", "."], check=True)
+            console.print("[bold green]Linting and formatting complete![/]")
+        except subprocess.CalledProcessError as e:
+            console.print("[bold red]Linting failed.[/]")
+            raise click.Abort() from e
 
 
 @cli.command()

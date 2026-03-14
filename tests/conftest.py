@@ -1,13 +1,14 @@
-import os
+from pathlib import Path
 
 import pytest
 
-# Ensure tests always use an isolated, in-memory SQLite database
-# by setting an environment variable that the app will read.
-os.environ["SMELT_DB_PATH"] = ":memory:"
-
 
 @pytest.fixture(autouse=True)
-def _enforce_test_db(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure every single test uses an isolated in-memory database."""
-    monkeypatch.setenv("SMELT_DB_PATH", ":memory:")
+def _enforce_test_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Ensure every single test uses an isolated tmp database.
+
+    Using a temporary file instead of :memory: allows multiple CLI commands
+    in the same test to share the same database state.
+    """
+    db_path = tmp_path / "test_roadmap.db"
+    monkeypatch.setenv("SMELT_DB_PATH", str(db_path))
