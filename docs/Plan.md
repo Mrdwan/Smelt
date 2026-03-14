@@ -112,13 +112,13 @@ Pipeline picks next ready task (dependencies met)
 - [x] Git operations module (branch, commit, push — used by pipeline only)
 
 ### Phase 2: Core Pipeline
-- [ ] Sanity check (pytest on develop, bug ticket creation)
-- [ ] Repo context builder (tree-sitter, multi-language)
-- [ ] Goose integration: figure out how to invoke programmatically
-      (headless sessions, prompt injection, result capture)
-- [ ] Architect stage (Goose session with planning prompt)
-- [ ] Coder stage (Goose session with coding prompt)
-- [ ] QA stage (deterministic: pytest, ruff, mypy, structured results)
+- [x] Sanity check (pytest on develop, bug ticket creation)
+- [x] Repo context builder (tree-sitter, multi-language)
+- [x] Goose integration: GooseAdapter via subprocess (swappable via CodingAgent protocol)
+- [x] Architect stage (LLM-based planning via LiteLLM)
+- [x] Coder stage (coding agent session with plan + failure context)
+- [x] QA stage (deterministic: pytest, ruff, mypy, structured results)
+- [x] Pipeline runner orchestrator (sanity → branch → context → architect → coder+QA loop)
 
 ### Phase 3: Review & Verification
 - [ ] Reviewer stage (read-only Goose, code quality prompt)

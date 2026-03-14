@@ -12,9 +12,11 @@ from rich.console import Console
 from rich.table import Table
 
 from smelt import __version__
+from smelt.config import SmeltConfig
 from smelt.db.schema import init_db
 from smelt.db.store import TaskStore
 from smelt.exceptions import SmeltError
+from smelt.git import GitOps
 
 console = Console()
 
@@ -42,15 +44,55 @@ def cli() -> None:
     """Smelt — orchestrate AI coding agents to ship code autonomously."""
 
 
+def _get_config() -> SmeltConfig:
+    """Load SmeltConfig from smelt.toml or return defaults."""
+    toml_path = Path("smelt.toml")
+    if toml_path.is_file():
+        return SmeltConfig.from_toml(toml_path)
+    return SmeltConfig.default()
+
+
 @cli.command()
 @click.option("--task", default=None, help="Execute a specific task by ID.")
 def run(task: str | None) -> None:
     """Pick the next task and execute the full pipeline."""
+    from smelt.agents.goose_adapter import GooseAdapter
+    from smelt.agents.llm_client import LiteLLMClient
+    from smelt.pipeline.runner import PipelineRunner
+
+    config = _get_config()
+    store = _get_db()
+    repo_path = Path.cwd()
+    git = GitOps(repo_path, config.git)
+
+    specific_task = None
     if task:
+        specific_task = store.get_task(task)
+        if specific_task is None:
+            console.print(f"[bold red]Error:[/] Task '{task}' not found.")
+            raise click.Abort()
         console.print(f"[bold cyan]smelt[/] → running task [yellow]{task}[/] …")
     else:
         console.print("[bold cyan]smelt[/] → picking next ready task …")
-    console.print("[dim]Pipeline not yet implemented.[/]")
+
+    runner = PipelineRunner(
+        config=config,
+        store=store,
+        git=git,
+        llm=LiteLLMClient(),
+        agent=GooseAdapter(),
+        repo_path=repo_path,
+    )
+
+    result = runner.run(specific_task)
+
+    if result.success:
+        console.print(f"[bold green]Pipeline passed![/] {result.message}")
+    else:
+        console.print(
+            f"[bold red]Pipeline failed[/] at [yellow]{result.stage_reached}[/]: "
+            f"{result.message}"
+        )
 
 
 @cli.command()

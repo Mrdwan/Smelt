@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/radwan/dev/Smelt/*.toml /Users/radwan/dev/Smelt/.pre-commit-config.yaml)",
+      "Bash(uv add:*)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(uv run:*)"
+    ]
+  }
+}

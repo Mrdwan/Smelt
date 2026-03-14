@@ -9,7 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from smelt import __version__
-from smelt.cli import _get_db, cli
+from smelt.cli import _get_config, _get_db, cli
 
 
 def test_get_db_default_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -19,6 +19,25 @@ def test_get_db_default_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     store = _get_db()
     assert store is not None
     assert (tmp_path / ".smelt" / "roadmap.db").exists()
+
+
+def test_get_config_returns_defaults_when_no_toml(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = _get_config()
+    from smelt.config import SmeltConfig
+
+    assert isinstance(config, SmeltConfig)
+
+
+def test_get_config_loads_toml_when_present(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "smelt.toml").write_text("[context]\nmax_tokens = 1234\n")
+    monkeypatch.chdir(tmp_path)
+    config = _get_config()
+    assert config.context.max_tokens == 1234
 
 
 class TestCLIGroup:
@@ -42,18 +61,60 @@ class TestCLIGroup:
         assert "Usage" in result.output
 
 
+def _mock_runner(
+    mocker: MagicMock, success: bool, stage: str, message: str, task_id: str = ""
+) -> None:
+    """Patch PipelineRunner so the run command doesn't actually run anything."""
+    from smelt.pipeline.runner import PipelineResult
+
+    mock_runner_instance = MagicMock()
+    mock_runner_instance.run.return_value = PipelineResult(
+        task_id=task_id, success=success, stage_reached=stage, message=message
+    )
+    mocker.patch(
+        "smelt.pipeline.runner.PipelineRunner", return_value=mock_runner_instance
+    )
+    mocker.patch("smelt.cli.GitOps")
+
+
 class TestRunCommand:
-    def test_run_no_args(self) -> None:
+    def test_run_no_args_no_tasks(self, mocker: MagicMock) -> None:
+        _mock_runner(mocker, False, "pick", "No ready tasks found.")
         runner = CliRunner()
         result = runner.invoke(cli, ["run"])
         assert result.exit_code == 0
         assert "picking next ready task" in result.output
 
-    def test_run_with_task_id(self) -> None:
+    def test_run_pipeline_success(self, mocker: MagicMock) -> None:
+        _mock_runner(mocker, True, "qa", "All QA checks passed.", task_id="abc123")
         runner = CliRunner()
-        result = runner.invoke(cli, ["run", "--task", "abc-123"])
+        result = runner.invoke(cli, ["run"])
         assert result.exit_code == 0
-        assert "abc-123" in result.output
+        assert "Pipeline passed!" in result.output
+
+    def test_run_pipeline_failure(self, mocker: MagicMock) -> None:
+        _mock_runner(mocker, False, "qa", "QA failed.", task_id="abc123")
+        runner = CliRunner()
+        result = runner.invoke(cli, ["run"])
+        assert result.exit_code == 0
+        assert "Pipeline failed" in result.output
+
+    def test_run_with_task_id_not_found(self, mocker: MagicMock) -> None:
+        mocker.patch("smelt.cli.GitOps")
+        runner = CliRunner()
+        result = runner.invoke(cli, ["run", "--task", "nonexistent-id"])
+        assert result.exit_code != 0
+        assert "not found" in result.output
+
+    def test_run_with_valid_task_id(self, mocker: MagicMock) -> None:
+        _mock_runner(mocker, True, "qa", "Done.", task_id="abc123")
+        store = _get_db()
+        task = store.add_task("my task")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["run", "--task", task.id])
+        assert result.exit_code == 0
+        assert task.id in result.output
 
 
 class TestAddCommand:

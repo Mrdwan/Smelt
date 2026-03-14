@@ -44,3 +44,104 @@ class TaskDependency:
 
     task_id: str
     depends_on: str
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    """Result from a single deterministic tool run.
+
+    Attributes:
+        tool_name: Name of the tool run (e.g. 'pytest', 'ruff', 'mypy').
+        passed: True if the tool exited with return code 0.
+        stdout: Captured standard output.
+        stderr: Captured standard error.
+        return_code: The process exit code.
+    """
+
+    tool_name: str
+    passed: bool
+    stdout: str
+    stderr: str
+    return_code: int
+
+
+@dataclass(frozen=True)
+class QAResult:
+    """Aggregated result from the QA stage.
+
+    Attributes:
+        passed: True if all tools passed.
+        tool_results: Results from each individual tool.
+        summary: Human-readable summary of failures (or success message).
+    """
+
+    passed: bool
+    tool_results: tuple[ToolResult, ...]
+    summary: str
+
+
+@dataclass(frozen=True)
+class AgentResult:
+    """Result from a coding agent session.
+
+    Attributes:
+        success: True if the agent completed without error.
+        session_id: Unique identifier for this agent session.
+        output: The agent's final output text.
+        duration_seconds: Wall-clock time the session took.
+    """
+
+    success: bool
+    session_id: str
+    output: str
+    duration_seconds: float
+
+
+@dataclass(frozen=True)
+class RepoContext:
+    """Repository context built from tree-sitter analysis.
+
+    Attributes:
+        file_tree: Indented file listing with sizes.
+        signatures: Extracted function/class signatures from all source files.
+        config_files: Contents of key config files (filename -> content).
+        token_count: Estimated token count of the full rendered context.
+    """
+
+    file_tree: str
+    signatures: str
+    config_files: dict[str, str]
+    token_count: int
+
+    def render(self, max_tokens: int) -> str:
+        """Render context within a token budget.
+
+        Includes file tree and config files always, then signatures up to budget.
+
+        Args:
+            max_tokens: Maximum estimated tokens for the rendered output.
+
+        Returns:
+            A string containing the repository context within the budget.
+        """
+        config_section = "\n".join(
+            f"### {name}\n```\n{content}\n```"
+            for name, content in self.config_files.items()
+        )
+        header = (
+            f"## File Tree\n{self.file_tree}\n\n## Key Config Files\n{config_section}"
+        )
+
+        # Budget signatures
+        header_tokens = len(header) // 4
+        remaining = max_tokens - header_tokens
+        if remaining <= 0:
+            return header
+
+        sig_chars = remaining * 4
+        signatures = (
+            self.signatures[:sig_chars] + "\n... (truncated)"
+            if len(self.signatures) > sig_chars
+            else self.signatures
+        )
+        return f"{header}\n\n## Code Signatures\n{signatures}"
